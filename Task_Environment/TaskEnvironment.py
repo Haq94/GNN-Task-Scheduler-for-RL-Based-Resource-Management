@@ -26,10 +26,10 @@ class TaskEnvironment:
         """
         # Each task feature: [Memory Required, CPU Required, Arrival Time, Runtime]
         self.tasks = np.random.rand(self.num_tasks, 4)
-        self.tasks[:, 0] *= 2.0  # Memory requirement (scaled up)
+        self.tasks[:, 0] *= 10.0  # Memory requirement (scaled up)
         self.tasks[:, 1] *= 2.0  # CPU requirement (scaled up)
         self.tasks[:, 2] *= 5.0  # Arrival time (scaled between 0 and 5 units)
-        self.tasks[:, 3] *= 3.0  # Runtime (scaled between 0 and 3 units)
+        self.tasks[:, 3] *= 10.0  # Runtime (scaled between 0 and 10 units)
 
         # Resources available
         self.available_memory = self.max_memory
@@ -46,54 +46,57 @@ class TaskEnvironment:
 
         return self.tasks.copy()
 
-    def step(self, action):
+    def step(self, actions):
         """
         Take an action to schedule a task.
 
         Args:
-            action (int): Index of the task to schedule.
+            action (int): Index of actions for each task.
 
         Returns:
             state (np.array): New node features.
-            reward (float): Reward for the action.
+            rewards (float): Reward for the action.
             done (bool): Whether the episode has finished.
             info (dict): Extra information (optional).
         """
-        task = self.tasks[action]
-        memory_required, cpu_required, arrival_time, runtime = task
-
-        reward = 0.0
-
-        # Check if task has arrived
-        if self.current_time >= arrival_time and self.task_status[action] == 0:
-            # Check if enough resources
-            if self.available_memory >= memory_required and self.available_cpu >= cpu_required:
-                # Allocate resources
-                self.available_memory -= memory_required
-                self.available_cpu -= cpu_required
-                self.task_status[action] = 1  # Mark task as scheduled
-                self.task_completion_time[action] = self.current_time + runtime  # Set completion time
-
-                reward = 1.0  # Positive reward for successful scheduling
-            else:
-                reward = -1.0  # Not enough resources (bad scheduling)
-        elif self.task_status[action] == 1 and self.current_time >= self.task_completion_time[action]:
-            # If the task is scheduled and has completed its runtime, free the resources
-            self.available_memory += memory_required
-            self.available_cpu += cpu_required
-            self.task_status[action] = 2  # Mark task as finished
-            reward = 2.0  # Positive reward for completing a task
-
-        else:
-            reward = -0.5  # Invalid action: task not ready, already scheduled or already completed
-
+        rewards = np.zeros(self.num_tasks)
+        for n in range(self.num_tasks):
+        
+            task = self.tasks[n]
+            memory_required, cpu_required, arrival_time, runtime = task
+            
+            action = actions[n]
+            # reward = 0.0
+            # Attempt to schedule task if it has arrived and it's not already scheduled
+            if action == 1 and self.current_time >= arrival_time and self.task_status[n] == 0:
+                    # Check if enough resources
+                    if self.available_memory >= memory_required and self.available_cpu >= cpu_required:
+                        # Allocate resources
+                        self.available_memory -= memory_required
+                        self.available_cpu -= cpu_required
+                        self.task_status[n] = 1  # Mark task as scheduled
+                        self.task_completion_time[n] = self.current_time + runtime  # Set completion time
+        
+                        rewards[n] = 1.0  # Positive reward for successful scheduling
+                    else:
+                        rewards[n] = -1.0  # Not enough resources (bad scheduling)
+            if self.task_status[n] == 1 and self.current_time >= self.task_completion_time[n]:
+                # If the task is scheduled and has completed its runtime, free the resources
+                self.available_memory += memory_required
+                self.available_cpu += cpu_required
+                self.task_status[n] = 2  # Mark task as finished
+                rewards[n] = 2.0  # Positive reward for completing a task
+    
+            # else:
+            #     rewards[n] = -0.5  # Invalid action: task not ready, already scheduled or already completed
+                
         # Advance time (simple rule: +1 per step)
         self.current_time += 1.0
-
+    
         # Check if all tasks are scheduled
         done = np.all(self.task_status == 2)
 
-        return self.tasks.copy(), reward, done, {}
+        return self.tasks.copy(), rewards, done
 
     def get_action_mask(self):
         """
