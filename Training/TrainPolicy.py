@@ -1,9 +1,10 @@
 import numpy as np
-# import sys
-# import os
+import sys
+import os
 
-# # Fix imports
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Fix imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Policy_Network.PolicyNetwork import PolicyNetwork
 from Policy_Network.LossFunctions import LossFunctions
@@ -74,16 +75,7 @@ class TrainPolicy:
             # Backward and update
             self.policy_network.backward(logit_grad, self.lr)
 
-            print(f"Episode {episode+1}/{self.num_episodes}, Total Reward: {Rewards.sum():.2f}")
-
-
-    # def compute_returns(self, rewards):
-    #     returns = []
-    #     cumulative = 0
-    #     for reward in reversed(rewards):
-    #         cumulative = reward + self.gamma * cumulative
-    #         returns.insert(0, cumulative)
-    #     return np.array(returns)
+            print(f"Episode {episode+1}/{self.num_episodes}, Loss: {policy_loss:.4f}, Total Reward: {Rewards.sum():.2f}")
     
     def compute_node_returns(self, rewards):
         """
@@ -108,7 +100,8 @@ class TrainPolicy:
 
 
     def compute_policy_loss(self, log_probs, returns):
-        returns = (returns - np.mean(returns, axis=0)) / (np.std(returns, axis=0) + 1e-8)  # Normalize returns
+        returns = returns.copy()
+        returns = (returns - np.mean(returns, axis=0)) / (np.std(returns, axis=0) + 1e-8) 
         loss = -np.sum(log_probs * returns)  # Policy gradient loss
         return loss
 
@@ -151,37 +144,12 @@ class TrainPolicy:
             action[n] = np.random.choice(len(probs[n]), p=probs[n])
             
         return action.astype(int)
-
-    # def reinforce_gradient(probs, actions, returns):
-    #     """
-    #     Compute the REINFORCE gradient w.r.t. logits (before softmax).
-    
-    #     Args:
-    #         probs: numpy array of shape [num_nodes, num_actions], raw outputs after softmax
-    #         actions: numpy array of shape [num_nodes], integer indices of actions taken
-    #         returns: numpy array of shape [num_nodes] or [num_nodes, 1], returns (rewards-to-go)
-    
-    #     Returns:
-    #         gradient: numpy array of shape [num_nodes, num_actions], gradients to pass to logits
-    #     """
-    #     # # Compute softmax probabilities
-    #     # exp_logits = np.exp(logits - np.max(logits, axis=1, keepdims=True))  # for numerical stability
-    #     # probs = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)       # shape: [B, A]
-    
-    #     # One-hot encode actions
-    #     num_nodes, num_actions = probs.shape
-    #     one_hot_actions = np.zeros_like(probs)
-    #     one_hot_actions[np.arange(num_nodes), actions] = 1
-    
-    #     # Make sure returns shape is [B, 1] for broadcasting
-    #     returns = returns.reshape(-1, 1)
-    
-    #     # Gradient of loss w.r.t. logits: (π - one_hot) * return 
-    #     gradient = (probs - one_hot_actions) * returns  # shape: [B, A]
-    #     return gradient
     
     def reinforce_gradient(self, Probs, Actions, Returns):
-        
+        # Normalize returns 
+        Returns = Returns.copy()
+        Returns = (Returns - np.mean(Returns, axis=0)) / (np.std(Returns, axis=0) + 1e-8)
+
         # Number of time steps in episode and number of nodes
         num_steps, num_nodes = Actions.shape
         
@@ -208,10 +176,12 @@ class TrainPolicy:
                 one_hot[a] = 1
                 
                 logit_grad[node] += (probs - one_hot)*G
+
+        # Normalize logit_grad
+
+        logit_grad /= num_steps
                 
         return logit_grad
-                
-                
 
 
 

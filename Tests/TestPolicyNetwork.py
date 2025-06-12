@@ -1,7 +1,21 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Apr 26 09:01:17 2025
+import sys
+import os
 
-@author: Omer
-"""
+# Fix imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from Policy_Network.GCNLayer import GCNLayer
+from Policy_Network.Nonlinearity import NonlinearityLayer
+from Policy_Network.DenseLayer import DenseLayer
+from Policy_Network.PolicyNetwork import PolicyNetwork
+from Training.TrainPolicy import TrainPolicy
+from Tests.TestEnvironments import TestEnvironments
+
+gcn = GCNLayer(input_dim=2, output_dim=4)
+relu = NonlinearityLayer('relu')
+dense = DenseLayer(input_dim=4, output_dim=2)
+network = [gcn, relu, dense]
+policy = PolicyNetwork(network)
+
+trainer = TrainPolicy(TestEnvironments(), policy_network=policy, num_episodes=2000, lr=0.01)
+trainer.train()
